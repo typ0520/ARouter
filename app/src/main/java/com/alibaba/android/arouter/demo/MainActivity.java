@@ -35,6 +35,9 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         setContentView(R.layout.activity_main);
 
         activity = this;
+
+        ARouter.openDebug();
+        ARouter.init(getApplication());
     }
 
     public static Activity getThis() {
@@ -66,7 +69,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 break;
             case R.id.normalNavigation:
                 ARouter.getInstance()
-                        .build("/test/activity2")
+                        .build("/user/typ0520")
                         .navigation();
                 break;
             case R.id.kotlinNavigation:
@@ -203,8 +206,8 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                         .navigation(this, 666);
                 break;
             case R.id.getFragment:
-                Fragment fragment = (Fragment) ARouter.getInstance().build("/test/fragment").navigation();
-                Toast.makeText(this, "找到Fragment:" + fragment.toString(), Toast.LENGTH_SHORT).show();
+                Fragment fragment = (Fragment) ARouter.getInstance().build("/test/fragment222").navigation();
+                Toast.makeText(this, "找到Fragment:" + fragment, Toast.LENGTH_SHORT).show();
                 break;
             default:
                 break;

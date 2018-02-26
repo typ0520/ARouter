@@ -61,4 +61,5 @@ dependencies {
 
     compile "com.android.support:support-v4:${SUPPORT_LIB_VERSION}"
     compile "com.android.support:appcompat-v7:${SUPPORT_LIB_VERSION}"
+    compile "com.github.typ0520:router-mapping:1.0.0"
 }
