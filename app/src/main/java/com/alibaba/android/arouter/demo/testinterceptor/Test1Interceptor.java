@@ -32,6 +32,7 @@ public class Test1Interceptor implements IInterceptor {
      */
     @Override
     public void process(final Postcard postcard, final InterceptorCallback callback) {
+        Log.d("Test1Interceptor", Thread.currentThread().getName());
         if ("/test/activity4".equals(postcard.getPath())) {
             final AlertDialog.Builder ab = new AlertDialog.Builder(MainActivity.getThis());
             ab.setCancelable(false);

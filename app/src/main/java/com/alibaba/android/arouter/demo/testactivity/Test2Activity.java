@@ -11,16 +11,15 @@ import com.alibaba.android.arouter.facade.annotation.Route;
 
 @Route(path = "/user/{username}")
 public class Test2Activity extends AppCompatActivity {
-
     @Autowired
-    String key1;
+    String username;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_test2);
 
-        String value = getIntent().getStringExtra("key1");
+        String value = getIntent().getStringExtra("username");
         if (!TextUtils.isEmpty(value)) {
             Toast.makeText(this, "exist param :" + value, Toast.LENGTH_LONG).show();
         }
