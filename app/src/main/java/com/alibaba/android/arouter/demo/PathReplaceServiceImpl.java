@@ -2,20 +2,19 @@ package com.alibaba.android.arouter.demo;
 
 import android.content.Context;
 import android.net.Uri;
-
 import com.alibaba.android.arouter.core.LogisticsCenter;
 import com.alibaba.android.arouter.core.WarehouseProxy;
-import com.alibaba.android.arouter.exception.HandlerException;
 import com.alibaba.android.arouter.exception.NoRouteFoundException;
 import com.alibaba.android.arouter.facade.Postcard;
 import com.alibaba.android.arouter.facade.annotation.Route;
 import com.alibaba.android.arouter.facade.model.RouteMeta;
 import com.alibaba.android.arouter.facade.service.PathReplaceService;
-import com.alibaba.android.arouter.utils.Consts;
 import com.alibaba.android.arouter.utils.TextUtils;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import router.mapping.RequestMapping;
 import router.mapping.RequestMappingInfo;
@@ -25,12 +24,15 @@ import router.mapping.RequestMappingInfo;
  */
 @Route(path = "/xxx/xxx") // 必须标明注解
 public class PathReplaceServiceImpl implements PathReplaceService {
-    private volatile int routesSize = 0;
+    private volatile int groupsIndexSize = 0;
+    private List<String> groupsIndexList = new ArrayList<>();
+
     private RequestMapping mapping = new RequestMapping();
 
     @Override
     public void init(Context context) {
-
+        groupsIndexSize = WarehouseProxy.getGroupsIndex().size();
+        groupsIndexList.addAll(WarehouseProxy.getGroupsIndex().keySet());
     }
 
     @Override
@@ -40,10 +42,11 @@ public class PathReplaceServiceImpl implements PathReplaceService {
 
     @Override
     public Uri forUri(Uri uri) {
-        try {
-            LogisticsCenter.completion(new Postcard(uri.getPath(),extractGroup(uri.getPath())));
-        } catch (NoRouteFoundException e) {
-
+        String group = extractGroup(uri.getPath());
+        if (WarehouseProxy.getGroupsIndex().containsKey(group)) {
+            try {
+                LogisticsCenter.completion(new Postcard(uri.getPath(),group));
+            } catch (NoRouteFoundException ignored) {}
         }
         syncRoutes();
         try {
@@ -77,15 +80,25 @@ public class PathReplaceServiceImpl implements PathReplaceService {
     }
 
     private synchronized void syncRoutes() {
-        if (routesSize != WarehouseProxy.getRoutes().size()) {
-            mapping.cleanup();
+        int curGroupsIndexSize;
+        if (groupsIndexSize != (curGroupsIndexSize = WarehouseProxy.getGroupsIndex().size())) {
+            ArrayList<String> deletedGroups = new ArrayList<>();
+            deletedGroups.addAll(groupsIndexList);
+            deletedGroups.removeAll(WarehouseProxy.getGroupsIndex().keySet());
+
             Map<String, RouteMeta> routes = new HashMap<>(WarehouseProxy.getRoutes());
             for (Map.Entry<String, RouteMeta> entry : routes.entrySet()) {
-                if (entry.getKey().contains("/{") && entry.getKey().contains("}")) {
-                    mapping.registerMapping(RequestMappingInfo.paths(entry.getKey()).mappingName(entry.getKey()).build());
+                for (String group : deletedGroups) {
+                    if (entry.getKey().startsWith("/" + group)) {
+                        if (entry.getKey().contains("/{") && entry.getKey().contains("}")) {
+                            mapping.registerMapping(RequestMappingInfo.paths(entry.getKey()).mappingName(entry.getKey()).build());
+                        }
+                        break;
+                    }
                 }
             }
-            routesSize = routes.size();
+            groupsIndexList.removeAll(deletedGroups);
+            groupsIndexSize = curGroupsIndexSize;
         }
     }
 
@@ -94,14 +107,14 @@ public class PathReplaceServiceImpl implements PathReplaceService {
      */
     private static String extractGroup(String path) {
         try {
-            String defaultGroup = path.substring(1, path.indexOf("/", 1));
-            if (TextUtils.isEmpty(defaultGroup)) {
-                throw new HandlerException(Consts.TAG + "Extract the default group failed! There's nothing between 2 '/'!");
-            } else {
-                return defaultGroup;
+            int index = path.indexOf("/", 1);
+            if (index == -1) {
+                index = path.length();
             }
+            String defaultGroup = path.substring(1, index);
+            return defaultGroup;
         } catch (Exception e) {
-            return null;
+            return "";
         }
     }
 
