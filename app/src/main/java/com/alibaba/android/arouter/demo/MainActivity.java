@@ -69,7 +69,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 break;
             case R.id.normalNavigation:
                 ARouter.getInstance()
-                        .build(Uri.parse("/user/typ0520"))
+                        .build(Uri.parse("arouter://m.aliyun.com/user/typ0520/"))
                         .navigation();
                 break;
             case R.id.kotlinNavigation:

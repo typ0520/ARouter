@@ -14,7 +14,7 @@ import com.alibaba.android.arouter.facade.service.PathReplaceService;
 import com.alibaba.android.arouter.utils.Consts;
 import com.alibaba.android.arouter.utils.TextUtils;
 import java.net.URI;
-import java.net.URLDecoder;
+import java.net.URISyntaxException;
 import java.util.HashMap;
 import java.util.Map;
 import router.mapping.RequestMapping;
@@ -49,20 +49,31 @@ public class PathReplaceServiceImpl implements PathReplaceService {
         try {
             RequestMappingInfo mappingInfo = mapping.lookupHandlerMethod(uri.getPath());
             if (mappingInfo != null) {
-                String pattern = mappingInfo.getPatternsCondition().getFirstPattern();
-                Map<String, String> params = mapping.getPathMatcher().extractUriTemplateVariables(pattern,uri.getPath());
+                String pattern = mappingInfo.getName();
+                Map<String, String> params = mapping.getPathMatcher().extractUriTemplateVariables(mappingInfo.getPatternsCondition().getFirstPattern(),uri.getPath());
                 Map<String, String> resultMap = new HashMap<>(TextUtils.splitQueryParameters(uri));
                 resultMap.putAll(params);
 
                 String newQueryString = joinQueryString(resultMap);
-                URI u = new URI(uri.getScheme(),uri.getUserInfo(),uri.getHost(),uri.getPort(),pattern,newQueryString,uri.getFragment());
-                String str = u.toString().replace(u.getPath(), URLDecoder.decode(u.getPath(),"utf-8"));
-                return Uri.parse(str);
+                return transformUrl(uri,pattern,newQueryString);
             }
         } catch (Exception e) {
             e.printStackTrace();
         }
         return uri;
+    }
+
+    private Uri transformUrl(Uri uri, String pattern, String newQueryString) throws URISyntaxException {
+        URI u = new URI(uri.getScheme(),uri.getUserInfo(),uri.getHost(),uri.getPort(),uri.getPath(),newQueryString,uri.getFragment());
+        String str = u.toString();
+        int index = str.indexOf(u.getPath());
+        StringBuilder sb = new StringBuilder();
+        if (index > 0) {
+            sb.append(str.substring(0,index));
+        }
+        sb.append(pattern);
+        sb.append(str.substring(index + u.getPath().length()));
+        return Uri.parse(sb.toString());
     }
 
     private synchronized void syncRoutes() {
@@ -71,7 +82,7 @@ public class PathReplaceServiceImpl implements PathReplaceService {
             Map<String, RouteMeta> routes = new HashMap<>(WarehouseProxy.getRoutes());
             for (Map.Entry<String, RouteMeta> entry : routes.entrySet()) {
                 if (entry.getKey().contains("/{") && entry.getKey().contains("}")) {
-                    mapping.registerMapping(RequestMappingInfo.paths(entry.getKey()).build());
+                    mapping.registerMapping(RequestMappingInfo.paths(entry.getKey()).mappingName(entry.getKey()).build());
                 }
             }
             routesSize = routes.size();
@@ -106,111 +117,4 @@ public class PathReplaceServiceImpl implements PathReplaceService {
         }
         return sb.toString();
     }
-
-//    private String toString(String scheme,
-//                            String opaquePart,
-//                            String authority,
-//                            String userInfo,
-//                            String host,
-//                            int port,
-//                            String path,
-//                            String query,
-//                            String fragment)
-//    {
-//        StringBuffer sb = new StringBuffer();
-//        if (scheme != null) {
-//            sb.append(scheme);
-//            sb.append(':');
-//        }
-//        appendSchemeSpecificPart(sb, opaquePart,
-//                authority, userInfo, host, port,
-//                path, query);
-//        appendFragment(sb, fragment);
-//        return sb.toString();
-//    }
-//
-//    // Quote any characters in s that are not permitted
-//    // by the given mask pair
-//    //
-//    private static String quote(String s, long lowMask, long highMask) {
-//        int n = s.length();
-//        StringBuffer sb = null;
-//        boolean allowNonASCII = ((lowMask & L_ESCAPED) != 0);
-//        for (int i = 0; i < s.length(); i++) {
-//            char c = s.charAt(i);
-//            if (c < '\u0080') {
-//                if (!match(c, lowMask, highMask)) {
-//                    if (sb == null) {
-//                        sb = new StringBuffer();
-//                        sb.append(s.substring(0, i));
-//                    }
-//                    appendEscape(sb, (byte)c);
-//                } else {
-//                    if (sb != null)
-//                        sb.append(c);
-//                }
-//            } else if (allowNonASCII
-//                    && (Character.isSpaceChar(c)
-//                    || Character.isISOControl(c))) {
-//                if (sb == null) {
-//                    sb = new StringBuffer();
-//                    sb.append(s.substring(0, i));
-//                }
-//                appendEncoded(sb, c);
-//            } else {
-//                if (sb != null)
-//                    sb.append(c);
-//            }
-//        }
-//        return (sb == null) ? s : sb.toString();
-//    }
-//
-//
-//    private void appendFragment(StringBuffer sb, String fragment) {
-//        if (fragment != null) {
-//            sb.append('#');
-//            sb.append(quote(fragment, L_URIC, H_URIC));
-//        }
-//    }
-//
-//    private void appendSchemeSpecificPart(StringBuffer sb,
-//                                          String opaquePart,
-//                                          String authority,
-//                                          String userInfo,
-//                                          String host,
-//                                          int port,
-//                                          String path,
-//                                          String query)
-//    {
-//        if (opaquePart != null) {
-//            /* check if SSP begins with an IPv6 address
-//             * because we must not quote a literal IPv6 address
-//             */
-//            if (opaquePart.startsWith("//[")) {
-//                int end =  opaquePart.indexOf("]");
-//                if (end != -1 && opaquePart.indexOf(":")!=-1) {
-//                    String doquote, dontquote;
-//                    if (end == opaquePart.length()) {
-//                        dontquote = opaquePart;
-//                        doquote = "";
-//                    } else {
-//                        dontquote = opaquePart.substring(0,end+1);
-//                        doquote = opaquePart.substring(end+1);
-//                    }
-//                    sb.append (dontquote);
-//                    sb.append(quote(doquote, L_URIC, H_URIC));
-//                }
-//            } else {
-//                sb.append(quote(opaquePart, L_URIC, H_URIC));
-//            }
-//        } else {
-//            appendAuthority(sb, authority, userInfo, host, port);
-//            if (path != null)
-//                sb.append(quote(path, L_PATH, H_PATH));
-//            if (query != null) {
-//                sb.append('?');
-//                sb.append(quote(query, L_URIC, H_URIC));
-//            }
-//        }
-//    }
 }
